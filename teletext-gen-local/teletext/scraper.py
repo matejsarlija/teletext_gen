@@ -12,7 +12,7 @@ from PIL import Image
 from tqdm import tqdm
 
 from config import MAX_RETRIES
-from teletext.sources import TeletextSource, SOURCES
+from teletext.sources import TeletextSource, SOURCES, ct_subpage_suffix
 
 
 def _scrape_base64_gif(source: TeletextSource, page: int, subpage: int,
@@ -87,7 +87,11 @@ def _scrape_json_api(source: TeletextSource, page: int, subpage: int,
 
 def _build_url(source: TeletextSource, page: int, subpage: int) -> str:
     """Build the URL for a given page+subpage using the source's base_url template."""
-    return source.base_url.format(page=page, subpage=subpage)
+    return source.base_url.format(
+        page=page,
+        subpage=subpage,
+        ct_page=f"{page}{ct_subpage_suffix(subpage)}",
+    )
 
 
 def scrape_source(source: TeletextSource, out_dir: Path, delay: float = 1.5,

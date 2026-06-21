@@ -79,13 +79,13 @@ SOURCES: dict = {
     'ct': TeletextSource(
         name='ct',
         display_name='Czech Television (Czech Republic)',
-        base_url='https://www.ceskatelevize.cz/teletext/{page_hex}.html',
+        base_url='https://api-teletext.ceskatelevize.cz/pages/{ct_page}/image.webp',
         page_range=(100, 899),
-        subpage_range=(1, 1),
+        subpage_range=(1, 8),
         charset='czech',
         language='cs',
-        image_format='javascript_spa',
-        notes='JS-rendered SPA. API at /api/teletext returns 401. Image URLs return 404. Needs headless browser or API discovery.',
+        image_format='direct_url',
+        notes='Direct WebP image endpoint. Web page p=100-1 resolves to API page 100A.',
     ),
 
     'svt': TeletextSource(
@@ -114,6 +114,8 @@ SOURCES: dict = {
 }
 
 
-def page_to_ct_hex(page: int) -> str:
-    """Convert page number to CT's teletext format (e.g. 100 -> '100D')."""
-    return f'{page}D'
+def ct_subpage_suffix(subpage: int) -> str:
+    """Convert CT subpage number to API suffix: 1 -> A, 2 -> B, etc."""
+    if subpage < 1 or subpage > 26:
+        raise ValueError(f"CT subpage must be in 1..26, got {subpage}")
+    return chr(ord('A') + subpage - 1)
