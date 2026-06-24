@@ -31,6 +31,8 @@ def main() -> None:
                         help="Source keys to scrape, or 'all' for everything")
     parser.add_argument("--out", type=str, default=str(RAW_DIR),
                         help=f"Output directory (default: {RAW_DIR})")
+    parser.add_argument("--workers", type=int, default=None,
+                        help="Max parallel sources to scrape (default: min(4, num_sources))")
     parser.add_argument("--delay", type=float, default=DEFAULT_SCRAPE_DELAY,
                         help=f"Seconds between requests (default: {DEFAULT_SCRAPE_DELAY})")
     parser.add_argument("--pages", type=str, default=None,
@@ -61,7 +63,8 @@ def main() -> None:
         source_keys = args.sources
 
     out_dir = Path(args.out)
-    scrape_all_sources(source_keys, out_dir, args.delay, page_range_override)
+    scrape_all_sources(source_keys, out_dir, args.delay, page_range_override,
+                       max_workers=args.workers)
     print("\nDone!")
 
 

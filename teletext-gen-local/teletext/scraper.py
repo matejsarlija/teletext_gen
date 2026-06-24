@@ -2,6 +2,7 @@ import base64
 import json
 import time
 import random
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from io import BytesIO
 from pathlib import Path
 from typing import List, Optional
@@ -12,6 +13,7 @@ from PIL import Image
 from tqdm import tqdm
 
 from config import MAX_RETRIES
+from teletext.pause import PauseController
 from teletext.sources import TeletextSource, SOURCES, ct_subpage_suffix
 
 
@@ -95,13 +97,8 @@ def _build_url(source: TeletextSource, page: int, subpage: int) -> str:
 
 
 def scrape_source(source: TeletextSource, out_dir: Path, delay: float = 1.5,
-                  page_range_override: Optional[tuple] = None) -> None:
-    """Scrape a single teletext source.
-
-    Downloads images and saves as PNG + JSON metadata sidecar.
-    Supports resume: already-downloaded pages are skipped.
-    Uses the source's image_format to select the right extraction strategy.
-    """
+                  page_range_override: Optional[tuple] = None,
+                  pause: Optional[PauseController] = None) -> None:
     out_dir = Path(out_dir)
     source_dir = out_dir / source.name
     source_dir.mkdir(parents=True, exist_ok=True)
@@ -131,6 +128,9 @@ def scrape_source(source: TeletextSource, out_dir: Path, delay: float = 1.5,
             if stem in seen:
                 pbar.update(1)
                 continue
+
+            if pause:
+                pause.wait_if_paused()
 
             url = _build_url(source, page, subpage)
             success = False
@@ -166,15 +166,39 @@ def scrape_source(source: TeletextSource, out_dir: Path, delay: float = 1.5,
 
 
 def scrape_all_sources(source_keys: List[str], out_dir: Path, delay: float = 1.5,
-                       page_range_override: Optional[tuple] = None) -> None:
-    """Scrape multiple teletext sources sequentially."""
+                       page_range_override: Optional[tuple] = None,
+                       max_workers: Optional[int] = None) -> None:
+    sources = []
     for key in source_keys:
         source = SOURCES.get(key)
         if source is None:
             print(f"Unknown source '{key}', skipping")
             continue
-        print(f"\nScraping {source.display_name}...")
-        scrape_source(source, out_dir, delay, page_range_override)
+        sources.append(source)
+
+    if not sources:
+        return
+
+    workers = max_workers if max_workers is not None else min(4, len(sources))
+
+    with PauseController() as pause, \
+         ThreadPoolExecutor(max_workers=workers) as executor:
+        futures = {
+            executor.submit(scrape_source, src, out_dir, delay,
+                            page_range_override, pause): src
+            for src in sources
+        }
+        errors = {}
+        for fut in as_completed(futures):
+            src = futures[fut]
+            try:
+                fut.result()
+            except Exception as exc:
+                errors[src.name] = exc
+
+    if errors:
+        lines = "\n".join(f"  {name}: {exc}" for name, exc in errors.items())
+        raise RuntimeError(f"Source(s) failed:\n{lines}")
 
 
 def inspect_source(source_key: str) -> None:
