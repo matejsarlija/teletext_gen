@@ -77,3 +77,24 @@ def test_generate_dataset_can_skip_rendering(tmp_path: Path) -> None:
     ]
     assert list(tmp_path.glob("page_*.png")) == []
 
+
+def test_dataset_length_mismatch_detected(tmp_path: Path) -> None:
+    import json
+    import pytest
+    from teletext.dataset import BalancedTokenGridDataset
+
+    tokens = np.zeros((5, 25, 40), dtype=np.int64)
+    weights = np.ones(3, dtype=np.float32)
+    metadata = [{"a": 1}] * 3
+
+    tok_path = tmp_path / "tokens.npy"
+    w_path = tmp_path / "weights.npy"
+    m_path = tmp_path / "metadata.json"
+
+    np.save(tok_path, tokens)
+    np.save(w_path, weights)
+    m_path.write_text(json.dumps(metadata))
+
+    with pytest.raises(ValueError, match="Mismatched lengths"):
+        BalancedTokenGridDataset(str(tok_path), str(w_path), str(m_path))
+

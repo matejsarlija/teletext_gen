@@ -47,3 +47,25 @@ DEFAULT_NATIONAL_CHARSET: str = 'croatian'
 DEFAULT_SOURCES: List[str] = ['hrt', 'rtvslo', 'rtvfbih']
 ACTIVE_CHARSETS: List[str] = ['croatian', 'slovenian', 'bosnian']
 DEFAULT_SCRAPE_DELAY: float = 1.5
+
+PAGE_RANGES: Dict[str, Tuple[int, int]] = {
+    'index':         (100, 199),
+    'news':          (200, 299),
+    'sports':        (300, 399),
+    'info':          (400, 499),
+    'entertainment': (500, 599),
+    'subtitles':     (600, 699),
+    'services':      (700, 799),
+    'promotions':    (800, 899),
+}
+
+SYNTHETIC_AUGMENTATION_THRESHOLD: int = 200
+TARGET_PAGES_PER_RANGE: int = 2000
+MAX_OVERSAMPLE_FACTOR: int = 10
+
+
+def page_to_range(page_number: int) -> str:
+    for name, (lo, hi) in PAGE_RANGES.items():
+        if lo <= page_number <= hi:
+            return name
+    return 'unknown'
